@@ -16,11 +16,14 @@ package main
 //go:generate go run server/errors_gen.go
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
-
+	"github.com/gorilla/mux"
 	"github.com/nats-io/nats-server/v2/server"
+	"io/ioutil"
+	"net/http"
+	"os"
 )
 
 var usageStr = `
@@ -118,5 +121,64 @@ func main() {
 	if err := server.Run(s); err != nil {
 		server.PrintAndDie(err.Error())
 	}
+
+	// Start UserManager HTTP Server
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/user/{nkey}", func(writer http.ResponseWriter, request *http.Request) {
+		var errorPlaceHolder error
+		defer s.HandlePanic(&errorPlaceHolder)
+
+		vars := mux.Vars(request)
+		errorPlaceHolder = s.DeleteUser(vars["nkey"])
+
+		if errorPlaceHolder != nil {
+			writer.WriteHeader(http.StatusInternalServerError)
+		} else {
+			writer.Header().Set("Content-Type", "application/json")
+			writer.WriteHeader(200)
+			result := map[string]string{
+				"deletedUser": vars["nkey"],
+			}
+			jsonStringInBytes, err := json.Marshal(result)
+			if err != nil {
+				errorPlaceHolder = err
+			}
+			_, err = writer.Write(jsonStringInBytes)
+			if err != nil {
+				return
+			}
+		}
+	}).Methods("DELETE")
+	router.HandleFunc("/user", func(writer http.ResponseWriter, request *http.Request) {
+		var errorPlaceHolder error
+		defer s.HandlePanic(&errorPlaceHolder)
+		user, e := ioutil.ReadAll(request.Body)
+		if e != nil {
+			errorPlaceHolder = e
+		}
+		errorPlaceHolder = s.AddUser(user)
+
+		if errorPlaceHolder != nil {
+			writer.WriteHeader(http.StatusInternalServerError)
+			_, err := writer.Write([]byte(errorPlaceHolder.Error()))
+			if err != nil {
+				return
+			}
+		} else {
+			writer.Header().Set("Content-Type", "application/json")
+			writer.WriteHeader(201)
+			_, err := writer.Write(user)
+			if err != nil {
+				return
+			}
+		}
+	}).Methods("POST")
+
+	userManagerErr := http.ListenAndServe(":4223", router)
+	if userManagerErr != nil {
+		// TODO: Print Error
+		return
+	}
+
 	s.WaitForShutdown()
 }

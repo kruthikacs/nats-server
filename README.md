@@ -1,3 +1,49 @@
+> Ensure atleast 1 user is created on server start (Via Configuration, say). This ensures smooth usage of user_manager wrt pub-sub
+
+### APIs of User Manager:
+##### Add User:
+```POST /<server-url>:4223/user```
+
+Sample Body:
+```
+{
+    "nkey": "UCUKSYDNKDFCDXZN4V5C6OOVCDENPGSGK2BFY4T3OCXT327V43C44PVB",
+    "permissions": {
+        "publish": {
+            "allow": [
+                "user1.>"
+            ],
+            "deny": [
+                "x.>",
+                "sys.>"
+            ]
+        },
+        "subscribe": {
+            "allow": [
+                "user1.>"
+            ],
+            "deny": [
+                "x.>",
+                "sys.>"
+            ]
+        },
+        "allow_responses": {
+            "max": 5,
+            "expires": "10s"
+        }
+    }
+}  
+```
+##### Delete User:
+```DELETE /<server-url>:4223/user/:nkey```
+
+Example:
+  ```
+  DELETE /<server-url>:4223/user/UCUKSYDNKDFCDXZN4V5C6OOVCDENPGSGK2BFY4T3OCXT327V43C44PVB
+  ```
+
+
+
 ## <img src="logos/nats-server.png" width="300">
 
 [NATS](https://nats.io) is a simple, secure and performant communications system for digital systems, services and devices. NATS is part of the Cloud Native Computing Foundation ([CNCF](https://cncf.io)). NATS has over [40 client language implementations](https://nats.io/download/), and its server can run on-premise, in the cloud, at the edge, and even on a Raspberry Pi. NATS can secure and simplify design and operation of modern distributed systems.
